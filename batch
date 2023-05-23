@@ -1,0 +1,40 @@
+@echo off
+
+REM Set up the variables
+set API_KEY=YOUR_API_KEY
+
+REM Prompt the user for the TXT file containing IP addresses
+set /p TXT_FILE="Enter the path to the TXT file containing IP addresses: "
+
+REM Check if the TXT file exists
+if not exist %TXT_FILE% (
+  echo Error: File not found.
+  exit /b
+)
+
+REM Read IP addresses from the TXT file
+for /f "usebackq tokens=*" %%A in ("%TXT_FILE%") do (
+  set IP_ADDRESS=%%A
+
+  REM Set up the URL
+  set URL=https://www.virustotal.com/api/v3/ip_addresses/%IP_ADDRESS%
+
+  REM Send the request and store the response
+  set response=
+  for /f "delims=" %%B in ('curl -s -H "x-apikey: %API_KEY%" "%URL%"') do (
+    set response=!response! %%B
+  )
+
+  REM Check if the request was successful
+  echo !response! | findstr /C:"\"error\": null" >nul
+  if !errorlevel! equ 0 (
+    REM Successful request
+    echo !response! > "%IP_ADDRESS%_reputation.txt"
+    echo IP reputation data for %IP_ADDRESS% saved to %IP_ADDRESS%_reputation.txt
+  ) else (
+    REM Error occurred
+    for /f "tokens=2 delims=:\"" %%C in ('echo !response! ^| findstr /C:"\"message\""') do (
+      echo Error for %IP_ADDRESS%: %%C
+    )
+  )
+)
